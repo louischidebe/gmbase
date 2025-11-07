@@ -1,5 +1,5 @@
 {
-  "frame": {
+  "miniapp": {
     "name": "GM on Base",
     "version": "1",
     "iconUrl": "https://gmbase-beta.vercel.app/icon.png",
