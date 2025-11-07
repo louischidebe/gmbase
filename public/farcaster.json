@@ -4,7 +4,6 @@
     "version": "1",
     "iconUrl": "https://gmbase-beta.vercel.app/icon.png",
     "homeUrl": "https://gmbase-beta.vercel.app/",
-    "buttonTitle": "Say GM",
     "splashImageUrl": "https://gmbase-beta.vercel.app/splash.png",
     "splashBackgroundColor": "#FFFFFF",
     "webhookUrl": "https://gmbase-beta.vercel.app/api/webhook",
