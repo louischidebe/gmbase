@@ -29,6 +29,7 @@ export default function Home() {
   const { switchChain } = useSwitchChain()
   const { writeContract, data: txHash } = useWriteContract()
 
+  const [isReady, setIsReady] = useState(false)
   const [points, setPoints] = useState<number | null>(null)
   const [lastGMTime, setLastGMTime] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -51,18 +52,40 @@ export default function Home() {
     args: address ? [address] : undefined,
   })
 
-  // 🔹 Initialize Farcaster SDK
+  // 🔹 Initialize Farcaster SDK + trigger Wagmi refresh
   useEffect(() => {
-    sdk.actions.ready().catch(console.error)
+    const init = async () => {
+      try {
+        await sdk.actions.ready()
+        setIsReady(true)
+        await new Promise((r) => setTimeout(r, 300))
+        window.dispatchEvent(new Event("focus")) // forces wagmi recheck
+      } catch (err) {
+        console.error("Farcaster SDK init error:", err)
+      }
+    }
+    init()
   }, [])
 
   // 🔹 Update points when fetched
+// 🔹 Update points and possibly last GM when fetched
   useEffect(() => {
     if (onchainPoints !== undefined) {
-      setPoints(Number(onchainPoints))
-      localStorage.setItem("gm-points", String(onchainPoints))
+      const prev = Number(localStorage.getItem("gm-points") || 0)
+      const newPoints = Number(onchainPoints)
+
+      setPoints(newPoints)
+      localStorage.setItem("gm-points", String(newPoints))
+
+      // If points increased, it means a new GM happened
+      if (newPoints > prev) {
+        const now = new Date().toISOString()
+        setLastGMTime(now)
+        localStorage.setItem("gm-last-time", now)
+      }
     }
   }, [onchainPoints])
+
 
   // 🔹 Handle confirmed transaction
   useEffect(() => {
@@ -131,13 +154,10 @@ export default function Home() {
   // 🔹 Allow one GM per UTC day
   const canSignGM = () => {
     if (!lastGMTime) return true
-
     const last = new Date(lastGMTime)
     const now = new Date()
-
     const lastDayUTC = Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate())
     const nowDayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-
     return nowDayUTC > lastDayUTC
   }
 
@@ -145,10 +165,8 @@ export default function Home() {
   const handleGM = async () => {
     if (!address) return
     setLoading(true)
-
     try {
       await switchChain({ chainId: 8453 })
-
       await writeContract({
         address: CONTRACT_ADDRESS,
         abi: BaseGM_ABI,
@@ -156,7 +174,6 @@ export default function Home() {
         value: parseEther("0.00003"),
         chainId: 8453,
       })
-
       toast.loading("Waiting for transaction confirmation...")
     } catch (err: any) {
       console.error("GM transaction failed:", err)
@@ -189,7 +206,9 @@ export default function Home() {
           <p className="text-foreground/60 text-sm">Daily sign on Base</p>
         </div>
 
-        {!address ? (
+        {!isReady ? (
+          <div className="text-center text-sm text-foreground/50">Connecting...</div>
+        ) : !address ? (
           <motion.button
             onClick={handleConnect}
             className="w-full bg-[#0052FF] text-white font-bold py-3 rounded-full text-lg shadow-lg hover:shadow-xl active:scale-95 transition-all"
