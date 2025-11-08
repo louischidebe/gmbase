@@ -23,7 +23,7 @@ import { toast } from "sonner"
 const CONTRACT_ADDRESS = "0x2eb1b50eEBe4bBC1aF30b128944E8EE90117f4ee"
 
 export default function Home() {
-  const { address } = useAccount()
+  const { isConnected, address } = useAccount()
   // Utility to scope localStorage keys by wallet
   const storageKey = (base: string) => (address ? `${base}-${address}` : base)
 
@@ -216,16 +216,7 @@ export default function Home() {
 
         {!isReady ? (
           <div className="text-center text-sm text-foreground/50">Connecting...</div>
-        ) : !address ? (
-          <motion.button
-            onClick={handleConnect}
-            className="w-full bg-[#0052FF] text-white font-bold py-3 rounded-full text-lg shadow-lg hover:shadow-xl active:scale-95 transition-all"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Connect Wallet
-          </motion.button>
-        ) : (
+        ) : isConnected ? (
           <div className="space-y-6">
             <PointsDisplay points={points ?? 0} />
 
@@ -235,7 +226,7 @@ export default function Home() {
               disabled={!canSignGM() || txPending}
             />
 
-            <UserStats wallet={address} lastGMTime={lastGMTime} />
+            <UserStats wallet={address!} lastGMTime={lastGMTime} />
 
             <motion.button
               onClick={() => disconnect()}
@@ -246,6 +237,15 @@ export default function Home() {
               Disconnect
             </motion.button>
           </div>
+        ) : (
+          <motion.button
+            onClick={() => connect({ connector: connectors[0] })}
+            className="w-full bg-[#0052FF] text-white font-bold py-3 rounded-full text-lg shadow-lg hover:shadow-xl active:scale-95 transition-all"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Connect Wallet
+          </motion.button>
         )}
       </motion.div>
     </main>
