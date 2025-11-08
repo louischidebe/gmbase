@@ -16,7 +16,7 @@ export const wagmiConfig = createConfig({
     // 🟦 External wallet fallbacks (MetaMask, WalletConnect)
     injected({ shimDisconnect: true }),
     walletConnect({
-      projectId: "YOUR_WALLETCONNECT_PROJECT_ID", // Get from https://cloud.walletconnect.com
+      projectId: "745c12e62a088505e04c407b5be32044", // Get from https://cloud.walletconnect.com
       showQrModal: true,
     }),
   ],
