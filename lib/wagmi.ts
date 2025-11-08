@@ -5,7 +5,9 @@ import { base } from "wagmi/chains"
 import { injected, walletConnect } from "wagmi/connectors"
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector"
 
-const isFarcaster = typeof window !== "undefined" && window.location.href.includes("miniapp.farcaster")
+const isFarcaster =
+  typeof window !== "undefined" &&
+  (window.FarcasterMiniApp !== undefined || window.location.search.includes("farcaster_miniapp"))
 
 export const wagmiConfig = createConfig({
   chains: [base],

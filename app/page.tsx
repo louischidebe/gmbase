@@ -24,6 +24,9 @@ const CONTRACT_ADDRESS = "0x2eb1b50eEBe4bBC1aF30b128944E8EE90117f4ee"
 
 export default function Home() {
   const { address } = useAccount()
+  // Utility to scope localStorage keys by wallet
+  const storageKey = (base: string) => (address ? `${base}-${address}` : base)
+
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
   const { switchChain } = useSwitchChain()
@@ -57,6 +60,8 @@ export default function Home() {
     const init = async () => {
       try {
         await sdk.actions.ready()
+        await sdk.wallet.getEthereumProvider()
+
         setIsReady(true)
         await new Promise((r) => setTimeout(r, 300))
         window.dispatchEvent(new Event("focus")) // forces wagmi recheck
@@ -67,24 +72,22 @@ export default function Home() {
     init()
   }, [])
 
-  // 🔹 Update points when fetched
-// 🔹 Update points and possibly last GM when fetched
+  // 🔹 Update points and possibly last GM when fetched
   useEffect(() => {
-    if (onchainPoints !== undefined) {
-      const prev = Number(localStorage.getItem("gm-points") || 0)
+    if (onchainPoints !== undefined && address) {
+      const prev = Number(localStorage.getItem(storageKey("gm-points")) || 0)
       const newPoints = Number(onchainPoints)
 
       setPoints(newPoints)
-      localStorage.setItem("gm-points", String(newPoints))
+      localStorage.setItem(storageKey("gm-points"), String(newPoints))
 
-      // If points increased, it means a new GM happened
       if (newPoints > prev) {
         const now = new Date().toISOString()
         setLastGMTime(now)
-        localStorage.setItem("gm-last-time", now)
+        localStorage.setItem(storageKey("gm-last-time"), now)
       }
     }
-  }, [onchainPoints])
+  }, [onchainPoints, address])
 
 
   // 🔹 Handle confirmed transaction
@@ -110,7 +113,7 @@ export default function Home() {
 
       const now = new Date().toISOString()
       setLastGMTime(now)
-      localStorage.setItem("gm-last-time", now)
+      if (address) localStorage.setItem(storageKey("gm-last-time"), now)
       setLoading(false)
     }
   }, [txConfirmed, txHash, refetchPoints])
@@ -126,7 +129,9 @@ export default function Home() {
 
   // 🔹 Clear GM record each new UTC day
   useEffect(() => {
-    const stored = localStorage.getItem("gm-last-time")
+    if (!address) return
+
+    const stored = localStorage.getItem(storageKey("gm-last-time"))
     if (stored) {
       const last = new Date(stored)
       const now = new Date()
@@ -134,13 +139,16 @@ export default function Home() {
       const nowDayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
 
       if (nowDayUTC > lastDayUTC) {
-        localStorage.removeItem("gm-last-time")
+        localStorage.removeItem(storageKey("gm-last-time"))
         setLastGMTime(null)
       } else {
         setLastGMTime(stored)
       }
+    } else {
+      setLastGMTime(null)
     }
-  }, [])
+  }, [address])
+
 
   // 🔹 Handle wallet connection
   const handleConnect = async () => {

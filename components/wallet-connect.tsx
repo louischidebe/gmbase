@@ -14,27 +14,24 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
   const handleConnect = async () => {
     setLoading(true)
     try {
-      // ✅ Get the EIP-1193 provider from the SDK
       const provider = await sdk.wallet.getEthereumProvider()
-
-      // 🧩 Ensure provider exists
       if (!provider) {
         console.error("Ethereum provider not available in this context")
         alert("Farcaster wallet not detected. Please open this MiniApp in Warpcast.")
         return
       }
 
-      // ✅ Request accounts via the provider
-      const accounts = (await provider.request({
-        method: "eth_requestAccounts",
-      })) as string[]
-
-      const address = accounts?.[0]
-      if (address) {
-        onConnect(address)
-      } else {
-        console.error("No wallet address returned")
+      // 🧠 Check if already connected
+      const accounts = await provider.request({ method: "eth_accounts" })
+      if (accounts?.[0]) {
+        onConnect(accounts[0])
+        setLoading(false)
+        return
       }
+
+      const newAccounts = (await provider.request({ method: "eth_requestAccounts" })) as string[]
+      const address = newAccounts?.[0]
+      if (address) onConnect(address)
     } catch (err) {
       console.error("Wallet connection failed:", err)
     } finally {
