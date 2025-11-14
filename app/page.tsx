@@ -11,12 +11,14 @@ import {
   useReadContract,
   useSwitchChain,
   useWaitForTransactionReceipt,
+  useSendCalls,
 } from "wagmi"
 import { parseEther } from "viem"
 import GMButton from "@/components/gm-button"
 import PointsDisplay from "@/components/points-display"
 import UserStats from "@/components/user-stats"
 import ConfettiExplosion from "@/components/confetti-explosion"
+import BatchTransaction from "@/components/batch-transaction"
 import { BaseGM_ABI } from "@/lib/abi"
 import { toast } from "sonner"
 
@@ -31,6 +33,7 @@ export default function Home() {
   const { disconnect } = useDisconnect()
   const { switchChain } = useSwitchChain()
   const { writeContract, data: txHash } = useWriteContract()
+  const { sendCalls } = useSendCalls()
 
   const [isReady, setIsReady] = useState(false)
   const [points, setPoints] = useState<number | null>(null)
@@ -59,17 +62,32 @@ export default function Home() {
   useEffect(() => {
     const init = async () => {
       try {
+        // Ensure the app is fully loaded before hiding splash screen
         await sdk.actions.ready()
+        
+        // Get Ethereum provider for wallet interactions
         await sdk.wallet.getEthereumProvider()
 
         setIsReady(true)
+        
+        // Small delay to ensure UI is ready
         await new Promise((r) => setTimeout(r, 300))
-        window.dispatchEvent(new Event("focus")) // forces wagmi recheck
+        
+        // Force Wagmi to recheck connection status
+        window.dispatchEvent(new Event("focus"))
       } catch (err) {
         console.error("Farcaster SDK init error:", err)
+        toast.error("Failed to initialize Farcaster SDK")
       }
     }
-    init()
+    
+    // Only initialize if we're in a Farcaster Mini App context
+    if (typeof window !== "undefined" && window.FarcasterMiniApp) {
+      init()
+    } else {
+      // For non-Farcaster environments, set ready immediately
+      setIsReady(true)
+    }
   }, [])
 
   // 🔹 Update points and possibly last GM when fetched
@@ -175,14 +193,30 @@ export default function Home() {
     setLoading(true)
     try {
       await switchChain({ chainId: 8453 })
-      await writeContract({
-        address: CONTRACT_ADDRESS,
-        abi: BaseGM_ABI,
-        functionName: "gm",
-        value: parseEther("0.00003"),
-        chainId: 8453,
-      })
-      toast.loading("Waiting for transaction confirmation...")
+      
+      // Use batch transactions if available (EIP-5792)
+      if (sendCalls) {
+        await sendCalls({
+          calls: [
+            {
+              to: CONTRACT_ADDRESS,
+              data: "0x18160ddd", // keccak256("gm()") function selector
+              value: parseEther("0.00003"),
+            }
+          ]
+        })
+        toast.loading("Waiting for transaction confirmation...")
+      } else {
+        // Fallback to regular transaction
+        await writeContract({
+          address: CONTRACT_ADDRESS,
+          abi: BaseGM_ABI,
+          functionName: "gm",
+          value: parseEther("0.00003"),
+          chainId: 8453,
+        })
+        toast.loading("Waiting for transaction confirmation...")
+      }
     } catch (err: any) {
       console.error("GM transaction failed:", err)
       toast.error("Transaction failed ❌", {
@@ -227,6 +261,9 @@ export default function Home() {
             />
 
             <UserStats wallet={address!} lastGMTime={lastGMTime} />
+
+            {/* Batch transaction demo - only show if wallet supports it */}
+            <BatchTransaction contractAddress={CONTRACT_ADDRESS} />
 
             <motion.button
               onClick={() => disconnect()}

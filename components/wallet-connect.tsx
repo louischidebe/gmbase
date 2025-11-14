@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { sdk } from "@farcaster/miniapp-sdk"
+import { toast } from "sonner"
 
 interface WalletConnectProps {
   onConnect: (address: string) => void
@@ -14,10 +15,11 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
   const handleConnect = async () => {
     setLoading(true)
     try {
+      // Get Ethereum provider from Farcaster Mini App SDK
       const provider = await sdk.wallet.getEthereumProvider()
       if (!provider) {
         console.error("Ethereum provider not available in this context")
-        alert("Farcaster wallet not detected. Please open this MiniApp in Warpcast.")
+        toast.error("Farcaster wallet not detected. Please open this MiniApp in Warpcast.")
         return
       }
 
@@ -29,11 +31,16 @@ export default function WalletConnect({ onConnect }: WalletConnectProps) {
         return
       }
 
+      // Request account access
       const newAccounts = (await provider.request({ method: "eth_requestAccounts" })) as string[]
       const address = newAccounts?.[0]
-      if (address) onConnect(address)
-    } catch (err) {
+      if (address) {
+        onConnect(address)
+        toast.success("Wallet connected successfully!")
+      }
+    } catch (err: any) {
       console.error("Wallet connection failed:", err)
+      toast.error("Failed to connect wallet: " + (err.message || "Unknown error"))
     } finally {
       setLoading(false)
     }
