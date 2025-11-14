@@ -81,6 +81,33 @@ export default function Home() {
           try {
             await sdk.wallet.getEthereumProvider()
             console.log("Farcaster Ethereum provider initialized")
+            
+            // Small delay to ensure provider is ready
+            await new Promise((r) => setTimeout(r, 100))
+            
+            // Try to automatically connect to Farcaster wallet
+            // Find the Farcaster connector
+            const farcasterConnector = connectors.find(connector => 
+              connector.id === 'farcasterMiniApp' || connector.name.includes('Farcaster')
+            )
+            
+            if (farcasterConnector && !isConnected) {
+              console.log("Attempting to auto-connect to Farcaster wallet")
+              try {
+                await connect({ connector: farcasterConnector })
+                console.log("Auto-connected to Farcaster wallet")
+              } catch (connectError) {
+                console.warn("Failed to auto-connect to Farcaster wallet:", connectError)
+                
+                // Even if auto-connect fails, we might already be connected
+                // Force a refresh of the connection status
+                window.dispatchEvent(new Event("focus"))
+              }
+            } else if (farcasterConnector && isConnected) {
+              console.log("Already connected to Farcaster wallet")
+            } else {
+              console.log("Farcaster connector not found or already connected")
+            }
           } catch (walletError) {
             console.warn("Failed to initialize Farcaster wallet provider:", walletError)
             // Continue even if wallet provider fails to initialize
@@ -105,7 +132,38 @@ export default function Home() {
     // Always initialize the SDK to hide splash screen
     // The Farcaster detection will happen inside the init function
     init()
-  }, [])
+  }, [connect, connectors, isConnected])
+
+  // 🔹 Auto-connect to Farcaster wallet when in Farcaster environment
+  useEffect(() => {
+    const autoConnect = async () => {
+      // Check if we're in a Farcaster environment
+      const isFarcasterEnv = typeof window !== "undefined" && 
+        (window.FarcasterMiniApp || window.location.search.includes('farcaster_miniapp'))
+      
+      if (!isFarcasterEnv || isConnected) return
+      
+      // Find the Farcaster connector
+      const farcasterConnector = connectors.find(connector => 
+        connector.id === 'farcasterMiniApp' || connector.name.includes('Farcaster')
+      )
+      
+      if (farcasterConnector) {
+        console.log("Auto-connecting to Farcaster wallet...")
+        try {
+          await connect({ connector: farcasterConnector })
+          console.log("Successfully auto-connected to Farcaster wallet")
+        } catch (err) {
+          console.warn("Failed to auto-connect to Farcaster wallet:", err)
+        }
+      }
+    }
+    
+    // Only try to auto-connect after the app is ready
+    if (isReady) {
+      autoConnect()
+    }
+  }, [isReady, connect, connectors, isConnected])
 
   // 🔹 Update points and possibly last GM when fetched
   useEffect(() => {

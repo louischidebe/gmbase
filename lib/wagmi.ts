@@ -15,13 +15,8 @@ const isFarcaster =
 export const wagmiConfig = createConfig({
   chains: [base],
   connectors: [
-    // 🟪 Use Farcaster connector only if inside miniapp context
-    ...(isFarcaster ? [
-      farcasterMiniApp({
-        // Enhanced configuration for better UX
-        shimDisconnect: true,
-      })
-    ] : []),
+    // 🟪 Always include Farcaster connector, it will only work in Farcaster context
+    farcasterMiniApp(),
 
     // 🟦 External wallet fallbacks (MetaMask, WalletConnect)
     injected({ 
