@@ -62,11 +62,30 @@ export default function Home() {
   useEffect(() => {
     const init = async () => {
       try {
-        // Ensure the app is fully loaded before hiding splash screen
-        await sdk.actions.ready()
+        // Log environment detection for debugging
+        console.log("Farcaster environment detection:", {
+          hasWindow: typeof window !== "undefined",
+          hasFarcasterMiniApp: typeof window !== "undefined" && window.FarcasterMiniApp,
+          hasFarcasterParam: typeof window !== "undefined" && window.location.search.includes('farcaster_miniapp'),
+          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown"
+        })
         
-        // Get Ethereum provider for wallet interactions
-        await sdk.wallet.getEthereumProvider()
+        // Ensure the app is fully loaded before hiding splash screen
+        // This must be called regardless of environment to prevent blank screen
+        await sdk.actions.ready()
+        console.log("Farcaster SDK ready() called successfully")
+        
+        // Get Ethereum provider for wallet interactions (only in Farcaster context)
+        if (typeof window !== "undefined" && 
+            (window.FarcasterMiniApp || window.location.search.includes('farcaster_miniapp'))) {
+          try {
+            await sdk.wallet.getEthereumProvider()
+            console.log("Farcaster Ethereum provider initialized")
+          } catch (walletError) {
+            console.warn("Failed to initialize Farcaster wallet provider:", walletError)
+            // Continue even if wallet provider fails to initialize
+          }
+        }
 
         setIsReady(true)
         
@@ -78,16 +97,14 @@ export default function Home() {
       } catch (err) {
         console.error("Farcaster SDK init error:", err)
         toast.error("Failed to initialize Farcaster SDK")
+        // Still set ready to true to avoid blank screen
+        setIsReady(true)
       }
     }
     
-    // Only initialize if we're in a Farcaster Mini App context
-    if (typeof window !== "undefined" && window.FarcasterMiniApp) {
-      init()
-    } else {
-      // For non-Farcaster environments, set ready immediately
-      setIsReady(true)
-    }
+    // Always initialize the SDK to hide splash screen
+    // The Farcaster detection will happen inside the init function
+    init()
   }, [])
 
   // 🔹 Update points and possibly last GM when fetched
@@ -249,7 +266,12 @@ export default function Home() {
         </div>
 
         {!isReady ? (
-          <div className="text-center text-sm text-foreground/50">Connecting...</div>
+          <div className="text-center text-sm text-foreground/50">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              Initializing Farcaster SDK...
+            </div>
+          </div>
         ) : isConnected ? (
           <div className="space-y-6">
             <PointsDisplay points={points ?? 0} />
